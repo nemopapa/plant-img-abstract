@@ -1,57 +1,66 @@
 # -*-encoding:utf-8-*-
 # python 2.7
+__author__='NemoPapa'
 import re
 import time
-from threading import Thread
-import requests
 import os
+import requests
+import threading
 from bs4 import BeautifulSoup
-import csv
 import random
-
+from config import (
+    PLANT_SITES, PLANT_DEST, PLANTURL_DEST,
+    FETCH_TIMEOUT,POOL_SIZE,REFERER_LIST,
+    USER_AGENT_LIST
+)
+from thread_pool.pool import Pool
 
 
 # 某多肉网站爬虫类，爬图片及简介.存取为文本格式。
 class succulent_plant:
-    # 初始化方法，定义一些变量
+    # 初始化
     def __init__(self):
-        self.PlantName=[]
-        self.filename=r"D:\python\code\test\good_proxy_list.txt"
-        self.plantfilename=r"D:\python\code\test\plant_list.txt"
-        # 多肉网站下载种子
-        self.seedurl = 'http://www.mengsang.com/duorou/list_1_1.html'
-        self.user_agent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
-        # 爬取内容存储路径
-        self.save_path = os.path.join(os.path.abspath('.'), "test")
-        if os.path.isdir(self.save_path) is False:#Test文件夹不存在就新建
-            os.mkdir(self.save_path)
-        #随机user_agent
-        self.user_agent = [ \
-            "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/22.0.1207.1 Safari/537.1", \
-            "Mozilla/5.0 (X11; CrOS i686 2268.111.0) AppleWebKit/536.11 (KHTML, like Gecko) Chrome/20.0.1132.57 Safari/536.11", \
-            "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6", \
-            "Mozilla/5.0 (Windows NT 6.2) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1090.0 Safari/536.6", \
-            "Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/19.77.34.5 Safari/537.1", \
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/536.5 (KHTML, like Gecko) Chrome/19.0.1084.9 Safari/536.5", \
-            "Mozilla/5.0 (Windows NT 6.0) AppleWebKit/536.5 (KHTML, like Gecko) Chrome/19.0.1084.36 Safari/536.5", \
-            "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1063.0 Safari/536.3", \
-            "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1063.0 Safari/536.3", \
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_0) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1063.0 Safari/536.3", \
-            "Mozilla/5.0 (Windows NT 6.2) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1062.0 Safari/536.3", \
-            "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1062.0 Safari/536.3", \
-            "Mozilla/5.0 (Windows NT 6.2) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1061.1 Safari/536.3", \
-            "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1061.1 Safari/536.3", \
-            "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1061.1 Safari/536.3", \
-            "Mozilla/5.0 (Windows NT 6.2) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1061.0 Safari/536.3", \
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.24 (KHTML, like Gecko) Chrome/19.0.1055.1 Safari/535.24", \
-            "Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/535.24 (KHTML, like Gecko) Chrome/19.0.1055.1 Safari/535.24"
-        ]
-        # 初始化headers
-        self.headers = {'User-Agent': random.choice(self.user_agent)}
-
+        self.totalurl=[]
+        self.planturl=PLANTURL_DEST
+        self.seedurl =PLANT_SITES
+        self.save_path = PLANT_DEST
+        self.timeout = FETCH_TIMEOUT
+        self.lock = threading.Lock()
+        self.headers = {'User-Agent': random.choice(USER_AGENT_LIST),
+                        'Referer': random.choice(REFERER_LIST)}
+    #爬数据
+    def start(self,index):
+        url_current = "http://www.mengsang.com/duorou/list_1_%s.html" %(index)
+         # 异常处理，页面响应超时
+        try:
+            quest = requests.get(url_current, timeout=self.timeout,headers=self.headers)
+            response = quest.content.decode('gbk','ignore')
+            soup = BeautifulSoup(response, 'lxml')
+            if quest.status_code == 200:
+                #sb4匹配查找
+                for urlimg in soup.find_all('a', class_='preview'):
+                    imgurl=urlimg['data-preview']
+                    Abstracturl = urlimg['href']
+                    PicName = urlimg['title']
+                    replaceBR = re.compile('/')  # 替换名称中含有/的字符
+                    PicName = re.sub(replaceBR, "2", PicName)
+                    abstracturl=[]
+                    abstracturl.append(Abstracturl)
+                    if abstracturl[0] in self.totalurl:
+                        continue
+                    else:
+                        with self.lock:
+                            with open(self.planturl,'a') as fs:
+                                fs.write(Abstracturl+'\r\n')
+                                print Abstracturl
+                            self.SaveImg(imgurl, PicName)
+                            self.SaveAbstract(Abstracturl, PicName)
+        except Exception , e:
+            print e
+    #存图片
     def SaveImg(self, pic_url, PicName):  # 参数：url图片链接，PicName：图片名
         try:  # 异常处理，保证程序出现异常继续执行
-            res = requests.get(pic_url, timeout=30, headers=self.headers)
+            res = requests.get(pic_url, timeout=self.timeout,headers=self.headers)
             save_img_path = os.path.join(self.save_path, PicName + ".jpg")
             # 保存下载的图片
             if res.status_code == 200:
@@ -64,25 +73,18 @@ class succulent_plant:
             return
         finally:
             return
-
+    #存简介
     def SaveAbstract(self, abstract_url, PicName):  # 参数：url简介链接，PicName：图片名
         try:  # 异常处理，保证程序出现异常继续执行
-            res = requests.get(abstract_url, timeout=30, headers=self.headers,
-                               proxies=self.proxies).content.decode('gbk','ignore')
-            time.sleep(1)
+            res = requests.get(abstract_url, timeout=self.timeout,
+                               headers=self.headers).content.decode('gbk','ignore')
             save_abstract_path = os.path.join(self.save_path, PicName + ".txt")
             soup = BeautifulSoup(res, 'lxml')
-            self.PlantName.append(PicName)
-            fw = open(save_abstract_path, "wb")
-            for i in soup.find_all("div", attrs={"class": "imgCenter"}, limit=1):
-                result = i.stripped_strings
-                #row=[]
-                #row.append(PicName.encode('gbk'))
-                for item in result:
-                    fw.write(item.encode('utf-8') + '\r\n')
-                    #row.append(item.encode('gbk'))
-                #self.writer.writerow(row)
-            fw.close()
+            with open(save_abstract_path, "wb") as fop:
+                for i in soup.find_all("div", attrs={"class": "imgCenter"}, limit=1):
+                    result = i.stripped_strings
+                    for item in result:
+                            fop.write(item.encode('utf-8') + '\r\n')
             print 'Had Saved %s Abstract!' % PicName
         except Exception , e:
             print e
@@ -90,86 +92,35 @@ class succulent_plant:
         finally:
             return
 
-    def load_proxies(self, filename):
-        """从文件加载有效代理 """
-        proxy_list = []
-        with open(filename) as fip:
-            for line in fip:
-                proxy_list.append(line.split('|')[0])
-        proxy_ip = random.choice(proxy_list)  # 随机获取代理ip
-        self.proxies = {'http': proxy_ip}
-        return self.proxies
-
-    def main(self):
-        url_list = []
-        url_unlist = []
-        url_count = 0
-        url_list.append(self.seedurl)
-        start = time.clock()
-        #csvfile = file(os.path.join(self.save_path,'Abstract.csv'), 'wb')
-        #self.writer = csv.writer(csvfile)
-        while url_list.__len__() > 0:
-            # 获取地址列表第一条
-            url_current = url_list.pop(0)
-            url_unlist.append(url_current)
-            # 异常处理，页面响应超时
-            try:
-                spider.load_proxies(self.filename)
-                print spider.load_proxies(self.filename)
-                quest = requests.get(url_current, timeout=10,
-                                           headers=self.headers,proxies=self.proxies)
-                response = quest.content.decode('gbk','ignore')
-                soup = BeautifulSoup(response, 'lxml')
-                if quest.status_code == 200:
-                    # 将列表中不存在的页码链接添加到url_list中
-                    for links in soup.find_all("div", attrs={"class": "fRight cRight"}):
-                        link = links.find_all("a", href=True)
-                        for item in link:
-                            url_next_page = "http://www.mengsang.com/duorou/" + item['href']
-                            url_unlist.extend(url_list)
-                            if url_next_page not in url_unlist:
-                                url_list.append(url_next_page)
-                                #print "Next Page:", url_next_pagetitle
-                    # 新版采用多线程，对每个页面建立一个线程进行爬取图片
-                    threads = []
-                    i=0
-                    for urlimg in soup.find_all('a',class_='preview'):
-                        #imgurl=urlimg['data-preview']
-                        Abstracturl=urlimg['href']
-                        PicName=urlimg['title']
-                        replaceBR = re.compile('/')  # 替换名称中含有/的字符
-                        PicName = re.sub(replaceBR, "2", PicName)
-                        i+=1
-                        f = open(self.plantfilename, "r")
-                        lines = f.readlines()  # 读取全部内容
-                        if PicName not in lines:
-                            #t1 = Thread(target=self.SaveImg, args=(imgurl,PicName))
-                            #threads.append(t1)
-                            t2 = Thread(target=self.SaveAbstract, args=(Abstracturl,PicName))
-                            threads.append(t2)
-                        for t in threads:
-                            t.setDaemon(True)
-                            t.start()
-                        for t in threads:
-                            t.join()
-                        print "There Are", i, "Imgs On Page", url_current
-                        url_count += 1
-                        print "Had View", url_count, "Pages"
-            except Exception , e:
-                print e
-                continue
-        fs = open(self.plantfilename, "a")
-        for plant in self.PlantName:
-            fs.write(plant.encode('utf-8')+'\r\n')
-        fs.close()
-        end = time.clock()
-        print "all time is: %f s" % (end - start)
-    # 开始方法
-    def start(self):
-        print u"正在读取网站内容"
-        if __name__ == '__main__':
-            self.main()
+    #从首页判断需爬页码
+    def lastpage(self,seedurl):
+        print u"判断需要爬多少页码数据..."
+        res = requests.get(seedurl, timeout=self.timeout,headers=self.headers)
+        response=res.content.decode('gbk','ignore')
+        soup = BeautifulSoup(response, 'lxml')
+        for pages in soup.find_all("a"):
+            page = pages.stripped_strings
+            for result in page:
+                if result == u'末页':
+                    totalpage=re.findall(r"\d+", pages['href'])[1]
+                    print "Total Pages is: %s" % (totalpage)
+                    return totalpage
 
 
-spider = succulent_plant()
-spider.start()
+
+def main():
+    """ main """
+    spider = succulent_plant()
+    starttime = time.clock()
+    spider.totalurl = list(map(str.strip, open(spider.planturl).readlines()))
+    totalpage=spider.lastpage(spider.seedurl)
+    print u"开始爬取"+totalpage+u'页数据...'
+    pool = Pool(size=POOL_SIZE)
+    pool.add_tasks([(spider.start,(index,)) for index in range(1,int(totalpage)+1)])
+    pool.run()
+    endtime = time.clock()
+    print "all time is: %f s" % (endtime - starttime)
+
+if __name__ == "__main__":
+    main()
+
