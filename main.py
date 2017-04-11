@@ -51,8 +51,8 @@ class succulent_plant:
                             with open(self.planturl,'a') as fs:
                                 fs.write(Abstracturl+'\r\n')
                                 print Abstracturl
-                            self.SaveImg(imgurl, PicName)
-                            self.SaveAbstract(Abstracturl, PicName)
+                        self.SaveImg(imgurl, PicName)
+                        self.SaveAbstract(Abstracturl, PicName)
         except Exception , e:
             print e
     #存图片
