@@ -37,16 +37,14 @@ class succulent_plant:
             response = quest.content.decode('gbk','ignore')
             soup = BeautifulSoup(response, 'lxml')
             if quest.status_code == 200:
-                #sb4匹配查找
+                #bs4匹配查找
                 for urlimg in soup.find_all('a', class_='preview'):
                     imgurl=urlimg['data-preview']
                     Abstracturl = urlimg['href']
                     PicName = urlimg['title']
                     replaceBR = re.compile('/')  # 替换名称中含有/的字符
                     PicName = re.sub(replaceBR, "2", PicName)
-                    abstracturl=[]
-                    abstracturl.append(Abstracturl)
-                    if abstracturl[0] in self.totalurl:
+                    if Abstracturl in self.totalurl:
                         continue
                     else:
                         with self.lock:
