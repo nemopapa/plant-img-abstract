@@ -12,9 +12,9 @@
 
 ## 依赖
     依赖[thread_pool](https://github.com/kaito-kidd/thread_pool)。
-    pip install bs4
-    pip install lxml
-    pip install requests
+    -bs4-
+    -pip install lxml-
+    -pip install requests-
     
 ## 使用
     git clone https://github.com/nemopapa/plant-img-abstract.git
