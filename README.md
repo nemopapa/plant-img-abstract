@@ -11,10 +11,10 @@
     采集器主程序，采集网站内容，输出目录见配置文件。
 
 ## 依赖
-    依赖[thread_pool](https://github.com/kaito-kidd/thread_pool)。
+    -[thread_pool](https://github.com/kaito-kidd/thread_pool)-
     -bs4-
-    -pip install lxml-
-    -pip install requests-
+    -lxml-
+    -requests-
     
 ## 使用
     git clone https://github.com/nemopapa/plant-img-abstract.git
